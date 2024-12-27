@@ -124,6 +124,8 @@ class SequentialMotionExecutor(torchNet):
 
 		theta2 = self.outputs[0,1] +1.309-0.4
 		theta3 = -self.outputs[0,2] -2.618 +0.4
+		a = 0.075
+		b = 0.120
 		jacz = np.array([0,a*np.cos(theta2)+b*np.cos(theta2+theta3),b*np.cos(theta3)])
 
 
