@@ -78,7 +78,7 @@ for i in range(NMODULE):
 	gd[i].attach_valuenet(sme[i].vn)
 
 # initialize simulation interface
-vrep = VrepInterfaze()
+vrep = VrepInterfaze(port=int(runargv[-1]))
 
 # initialize experience replay
 reward_replay = Replay(NREPLAY,shape=(NTIMESTEP,1,1))
@@ -160,8 +160,8 @@ for i in range(NEPISODE):
 
 	# update the network
 	for k in range(NMODULE):
-		gd[k].update(observation_replay[k].data(),reward_replay.data(),lrscale=0.1*float(runargv[1]))
-		agol[k].update(observation_replay[k].data(),weight_replay[k].data(),reward_replay.data(),grad_replay[k].data())
+		gd[k].update(observation_replay[k].data(),reward_replay.data())
+		agol[k].update(observation_replay[k].data(),weight_replay[k].data(),reward_replay.data(),grad_replay[k].data(),lrscale=0.1*float(runargv[1]))
 		
 
 	# balancing the network

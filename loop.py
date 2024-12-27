@@ -1,6 +1,10 @@
 import os, sys
 import configparser
 
+
+
+worker = 19997
+
 sample = 0
 while 1:
 	sample += 1
@@ -10,7 +14,7 @@ while 1:
 
 			gaittypes = [1,2] if tagotae_lr == 0 else [0,1,2]
 			for gait_id in gaittypes:
-				os.system("python3 main.py "+ str(gait_id) +" " +str(lr) +" " + str(tagotae_lr)+" "+str(sample))
+				os.system("python3 main.py "+ str(gait_id) +" " +str(lr) +" " + str(tagotae_lr)+" "+str(sample)+" "+str(worker))
 	
 	if sample > 10:
 		break

@@ -129,7 +129,7 @@ class SequentialMotionExecutor(torchNet):
 		jacz = np.array([0,a*np.cos(theta2)+b*np.cos(theta2+theta3),b*np.cos(theta3)])
 
 
-		self.__state = self.zpg(self.__filtered_inputs,self.__basis,delta=delta,scaling=scaling,jacz=jacz)
+		self.__state = self.zpg(self.__filtered_inputs,self.__basis,delta=delta,scaling=scaling,jacz=self.torch(jacz))
 		self.__basis = self.bfn(self.__state)
 		self.outputs = self.mn(self.__basis)
 
