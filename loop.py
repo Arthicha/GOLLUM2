@@ -10,7 +10,7 @@ while 1:
 	sample += 1
 
 	for lr in [10,20,5,30]:
-		for tagotae_lr in [0,5,10,20]:
+		for tagotae_lr in [0,5,10,20,50]:
 
 			gaittypes = [1,2] if tagotae_lr == 0 else [0,1,2]
 			for gait_id in gaittypes:

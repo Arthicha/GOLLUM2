@@ -114,11 +114,22 @@ for i in range(NEPISODE):
 		forcings = []
 
 		torques = vrep.get_jointtorque()
+		jointangles = vrep.get_jointangle()
+		zfoots = np.zeros((NMODULE,))
+		jacz = np.zeros((NMODULE,3))
+
+		for i in range(6):
+			theta2 = jointangles[3*i+1]
+			theta3 = jointangles[3*i+2]
+			zfoots[i] = 0.07*np.cos(theta2-0.261799) - 0.12*np.cos(-theta3+theta2-0.1309)
+			jacz[i,1] = -0.07*np.sin(theta2-0.261799) + 0.12*np.sin(-theta3+theta2-0.1309)
+			jacz[i,2] = -0.12*np.sin(-theta3+theta2-0.1309)
+		#print(jacz[0])
 		recorded_torque[i,t] = torques
 		torques = torques[1::3]-np.mean(torques[1::3])#np.clip(,0.0,None)
 		output = []
 		for k in range(NMODULE):	
-			output_k.append(sme[k].forward(sensory=torques[k], scaling=-1*0.1*float(runargv[2])/(1+10*ma_selforg)))
+			output_k.append(sme[k].forward(sensory=torques[k], scaling=-1*0.1*float(runargv[2])/(1+10*ma_selforg),jacz=jacz[k]))
 			output += numpy(output_k[k]).flatten().tolist()
 			basis = sme[k].get_basis(torch=True)
 			mbasis.append(torch.argmax(basis[0]).item())

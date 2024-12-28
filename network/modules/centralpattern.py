@@ -112,7 +112,8 @@ class SequentialCentralPatternGenerator(torchNet):
 		if jacz is None: # approx
 			self.forcing = self.forcing[:,1]
 		else:
-			self.forcing = torch.sum(self.forcing*self.torch(jacz.unsqueeze(0)),-1)
+			self.forcing = torch.sum(self.forcing*self.torch(jacz).unsqueeze(0),-1)
+		
 		self.__state = torch.sigmoid(
 			(self.__state@self.__A)+
 			(self.__basis@self.__B)+

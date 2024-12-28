@@ -117,19 +117,12 @@ class SequentialMotionExecutor(torchNet):
 		for i in range(self.__t_init):
 			self.forward()
 
-	def forward(self,sensory=0,scaling=1):
+	def forward(self,sensory=0,scaling=1,jacz=None):
 
 		delta = 1*sensory*(self.mn.W.detach())
 
 
-		theta2 = self.outputs[0,1] +1.309-0.4
-		theta3 = -self.outputs[0,2] -2.618 +0.4
-		a = 0.075
-		b = 0.120
-		jacz = np.array([0,a*np.cos(theta2)+b*np.cos(theta2+theta3),b*np.cos(theta3)])
-
-
-		self.__state = self.zpg(self.__filtered_inputs,self.__basis,delta=delta,scaling=scaling,jacz=self.torch(jacz))
+		self.__state = self.zpg(self.__filtered_inputs,self.__basis,delta=delta,scaling=scaling,jacz=jacz)
 		self.__basis = self.bfn(self.__state)
 		self.outputs = self.mn(self.__basis)
 
