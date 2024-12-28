@@ -72,7 +72,7 @@ class AddedGradientOnlineLearning(Optim):
 		with torch.no_grad():
 			self.W += (dw).detach()
 			self.__sigmas = torch.clamp(self.__sigmas + dsigma,0.001,0.05)
-
+		#print(self.W[1,1].item())
 
 			
 	# -------------------- apply noise -----------------------

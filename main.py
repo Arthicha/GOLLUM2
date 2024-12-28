@@ -86,7 +86,7 @@ grad_replay = [Replay(NREPLAY,shape= (NTIMESTEP,CONNECTION.shape[0],NJPERM)) for
 weight_replay = [Replay(NREPLAY,shape=(1,CONNECTION.shape[0],NJPERM)) for i in range(NMODULE)]
 observation_replay = [Replay(NREPLAY,shape=(NTIMESTEP,1,CONNECTION.shape[0])) for i in range(NMODULE)]
 
-ma_selforg = 0
+ma_selforg = 1
 
 recorded_reward = np.zeros((NEPISODE,NTIMESTEP))
 recorded_basis = np.zeros((NEPISODE,NTIMESTEP,CONNECTION.shape[0]))
@@ -103,6 +103,7 @@ for i in range(NEPISODE):
 	wnoises = [agol[k].wnoise() for k in range(NMODULE)]
 	for k in range(NMODULE):
 		sme[k].explore(wnoises[MORDER[k]])
+		#sme[k].explore(agol[k].wnoise())
 		weight_replay[k].add(sme[MORDER[k]].mn.Wn)
 
 	gaitstd = 0
@@ -118,18 +119,26 @@ for i in range(NEPISODE):
 		zfoots = np.zeros((NMODULE,))
 		jacz = np.zeros((NMODULE,3))
 
-		for i in range(6):
-			theta2 = jointangles[3*i+1]
-			theta3 = jointangles[3*i+2]
-			zfoots[i] = 0.07*np.cos(theta2-0.261799) - 0.12*np.cos(-theta3+theta2-0.1309)
-			jacz[i,1] = -0.07*np.sin(theta2-0.261799) + 0.12*np.sin(-theta3+theta2-0.1309)
-			jacz[i,2] = -0.12*np.sin(-theta3+theta2-0.1309)
+		for k in range(6):
+			theta2 = jointangles[3*k+1]
+			theta3 = jointangles[3*k+2]
+			zfoots[k] = 0.07*np.cos(theta2-0.261799) - 0.12*np.cos(-theta3+theta2-0.1309)
+			jacz[k,1] = -0.07*np.sin(theta2-0.261799) + 0.12*np.sin(-theta3+theta2-0.1309)
+			jacz[k,2] = -0.12*np.sin(-theta3+theta2-0.1309)
+		#zfoots = zfoots - np.mean(zfoots)
+		zfoots /= (1e-6+np.max(np.abs(zfoots)))
 		#print(jacz[0])
 		recorded_torque[i,t] = torques
-		torques = torques[1::3]-np.mean(torques[1::3])#np.clip(,0.0,None)
+		torques = torques[1::3]
 		output = []
+		sumdelta = 0
 		for k in range(NMODULE):	
-			output_k.append(sme[k].forward(sensory=torques[k], scaling=-1*0.1*float(runargv[2])/(1+10*ma_selforg),jacz=jacz[k]))
+			force = torques[k]/(1e-6+ma_selforg)
+
+			force = -force#np.clip(-force,0,1)
+			out, delta = sme[k].forward(sensory=force, scaling=0.1*float(runargv[2]),jacz=jacz[k])
+			sumdelta += torch.sum(torch.abs(delta))
+			output_k.append(out)
 			output += numpy(output_k[k]).flatten().tolist()
 			basis = sme[k].get_basis(torch=True)
 			mbasis.append(torch.argmax(basis[0]).item())
@@ -155,16 +164,18 @@ for i in range(NEPISODE):
 		pose = vrep.get_robot_pose()
 		dx = pose[0]-prepose[0]
 		dy = pose[1]-prepose[1]
-		reward = dx*np.cos(prepose[-1]) + dy*np.sin(prepose[-1])
+		reward = dx*np.cos(prepose[-1]) + dy*np.sin(prepose[-1]) #- 0.001*sumdelta
 		recorded_reward[i,t] = reward
 		prepose = deepcopy(pose)
 
 		# append experience replay
 		reward_replay.add(tensor([reward]).unsqueeze(0))
 		
-		
-	ma_selforg = (1-ALPHA)*ma_selforg + ALPHA*np.mean(np.abs(np.array(forcings)))
-
+	
+	istart = 0 if i<8 else i-8
+	
+	ma_selforg = np.mean(np.abs(recorded_torque[istart:i+1,:,1::3]))#(1-ALPHA)*ma_selforg + ALPHA*np.mean(np.abs(np.array(forcings)))
+	
 
 	print('\tepisodic reward',torch.sum(reward_replay.data()[-1]).item())
 	print('\tgait std',gaitstd,ma_selforg)

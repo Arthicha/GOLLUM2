@@ -119,14 +119,26 @@ class SequentialMotionExecutor(torchNet):
 
 	def forward(self,sensory=0,scaling=1,jacz=None):
 
-		delta = 1*sensory*(self.mn.W.detach())
+		delta = 1*sensory*(self.mn.Wn.detach())/(1e-6+torch.mean(torch.abs(self.mn.Wn.detach()),dim=0,keepdim=True))
+		
+		delta = (self.bfn.get_connection()@delta)
+
+		if jacz is not None:
+			delta = (scaling*delta)#@(self.torch(jacz).unsqueeze(-1))
+			delta = delta[:,1] - delta[:,2]
+			#delta = torch.transpose(delta,1,0)*100
+			delta = torch.clamp(delta,-0.5,0.5).unsqueeze(0)
+			delta[self.__basis < 1e-3] *= 0
+			#print(delta)
+		else:
+			delta = 0
 
 
-		self.__state = self.zpg(self.__filtered_inputs,self.__basis,delta=delta,scaling=scaling,jacz=jacz)
+		self.__state = self.zpg(self.__filtered_inputs,self.__basis,delta=delta,scaling=1)
 		self.__basis = self.bfn(self.__state)
 		self.outputs = self.mn(self.__basis)
 
-		return self.outputs
+		return self.outputs, delta
 
 	
 

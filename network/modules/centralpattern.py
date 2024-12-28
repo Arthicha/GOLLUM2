@@ -52,6 +52,7 @@ class SequentialCentralPatternGenerator(torchNet):
 		# initialize state connection proability
 		self.__connection = hyperparams.connection
 		self.forcing = 0
+		self.slowforcing = 0
 		# reset everything before use
 		self.reset()
 
@@ -68,6 +69,10 @@ class SequentialCentralPatternGenerator(torchNet):
 	# get state index
 	def get_state_index(self):
 		return self.numpy(torch.argmax(self.__state[0]).flatten())
+
+
+	def get_connection(self):
+		return self.__B.detach()
 
 
 	# -------------------- update/handle functions -----------------------
@@ -107,17 +112,22 @@ class SequentialCentralPatternGenerator(torchNet):
 		self.__basis = basis
 		self.__state[0,0] = 1 if torch.all(self.__state < GAMMA) else self.__state[0,0]
 
-		self.forcing = self.__A@delta
+		self.forcing = delta #self.__A@delta
 		
-		if jacz is None: # approx
-			self.forcing = self.forcing[:,1]
-		else:
-			self.forcing = torch.sum(self.forcing*self.torch(jacz).unsqueeze(0),-1)
-		
+		#if jacz is None: # approx
+		#	self.forcing = self.forcing[:,1]
+		#else:
+		#	self.forcing = torch.sum(self.forcing*self.torch(jacz).unsqueeze(0),-1)
+
+		#self.forcing = self.forcing.unsqueeze(0)*scaling
+		#print(self.forcing)
+		#self.slowforcing = torch.clamp(self.slowforcing*0.999 + self.forcing*0.001,-0.1,0.1)
+		#self.forcing = torch.clamp(self.forcing,-0.1,0.1)
+		#print(self.forcing)
 		self.__state = torch.sigmoid(
 			(self.__state@self.__A)+
 			(self.__basis@self.__B)+
-			self.__bias + self.forcing.unsqueeze(0)*scaling)
+			self.__bias + self.forcing)
 
 		return self.__state
 

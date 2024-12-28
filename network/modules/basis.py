@@ -56,6 +56,9 @@ class BasisNetwork(torchNet):
 	def get_basis_index(self):
 		return self.numpy(torch.argmax(self.__basis[0]).flatten())
 
+	def get_connection(self):
+		return self.__A.detach()
+
 	# -------------------- update/handle functions -----------------------
 	# (private)
 
