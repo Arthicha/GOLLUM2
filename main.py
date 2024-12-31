@@ -86,7 +86,7 @@ grad_replay = [Replay(NREPLAY,shape= (NTIMESTEP,CONNECTION.shape[0],NJPERM)) for
 weight_replay = [Replay(NREPLAY,shape=(1,CONNECTION.shape[0],NJPERM)) for i in range(NMODULE)]
 observation_replay = [Replay(NREPLAY,shape=(NTIMESTEP,1,CONNECTION.shape[0])) for i in range(NMODULE)]
 
-ma_selforg = 1
+ma_selforg = np.array([1,1])
 
 recorded_reward = np.zeros((NEPISODE,NTIMESTEP))
 recorded_basis = np.zeros((NEPISODE,NTIMESTEP,CONNECTION.shape[0]))
@@ -107,6 +107,8 @@ for i in range(NEPISODE):
 		weight_replay[k].add(sme[MORDER[k]].mn.Wn)
 
 	gaitstd = 0
+	sumdelta = 0
+	presumdelta = 1
 	for t in range(NTIMESTEP):
 
 		# update network
@@ -129,14 +131,15 @@ for i in range(NEPISODE):
 		zfoots /= (1e-6+np.max(np.abs(zfoots)))
 		#print(jacz[0])
 		recorded_torque[i,t] = torques
-		torques = torques[1::3]
+		#torques = torques[1::3]
 		output = []
-		sumdelta = 0
+		
 		for k in range(NMODULE):	
-			force = torques[k]/(1e-6+ma_selforg)
+			force = torques[[3*k+1,3*k+2]]/(1e-6+ma_selforg)
 
 			force = -force#np.clip(-force,0,1)
-			out, delta = sme[k].forward(sensory=force, scaling=0.1*float(runargv[2]),jacz=jacz[k])
+			out, delta = sme[k].forward(sensory=force, scaling=0.1*float(runargv[2])/presumdelta,jacz=jacz[k])
+			out = torch.clamp(out,-1,1)
 			sumdelta += torch.sum(torch.abs(delta))
 			output_k.append(out)
 			output += numpy(output_k[k]).flatten().tolist()
@@ -174,11 +177,11 @@ for i in range(NEPISODE):
 	
 	istart = 0 if i<8 else i-8
 	
-	ma_selforg = np.mean(np.abs(recorded_torque[istart:i+1,:,1::3]))#(1-ALPHA)*ma_selforg + ALPHA*np.mean(np.abs(np.array(forcings)))
-	
-
+	print(recorded_torque.shape)
+	ma_selforg = np.array([np.mean(np.abs(recorded_torque[istart:i+1,:,1::3])),np.mean(np.abs(recorded_torque[istart:i+1,:,2::3]))])
+	presumdelta = 0.9*presumdelta + 0.1*sumdelta/(NTIMESTEP*NMODULE)
 	print('\tepisodic reward',torch.sum(reward_replay.data()[-1]).item())
-	print('\tgait std',gaitstd,ma_selforg)
+	print('\tgait std',gaitstd,sumdelta)
 
 	# update the network
 	for k in range(NMODULE):
