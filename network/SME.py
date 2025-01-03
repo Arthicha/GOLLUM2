@@ -72,7 +72,8 @@ class SequentialMotionExecutor(torchNet):
 		self.__basis = self.zeros(1,self.__n_state)
 		self.__filtered_inputs = self.zeros(1,self.__n_in)
 		self.outputs = self.zeros(1,self.__n_out)
-
+		self.maxjac1 = 0 
+		self.maxjac2 = 0
 
 		# ---------------------- reset modular neural network ------------------------ 
 		self.reset()
@@ -132,8 +133,19 @@ class SequentialMotionExecutor(torchNet):
 			delta[self.__basis < 1e-3] *= 0'''
 		else:
 			maxj = max(np.abs(jacz[0]),np.abs(jacz[1]))
-			delta = (jacz[0]*sensory[0]*delta[:,1] - jacz[1]*sensory[1]*delta[:,2])/(1e-6+maxj)
-			delta = torch.clamp(-delta,-0.5,0.5).unsqueeze(0)
+
+			#delta = (jacz[0]*sensory[0]*delta[:,1] - jacz[1]*sensory[1]*delta[:,2])/(1e-6+maxj)
+			#delta = torch.clamp(-delta,-0.5,0.5).unsqueeze(0)
+
+			#self.maxjac1 = max(np.abs(jacz[0]),self.maxjac1)
+			#self.maxjac2 = max(np.abs(jacz[1]),self.maxjac2)
+
+			#delta = ((jacz[0]/(self.maxjac1+1e-6))*sensory[0]*delta[:,1] + (jacz[1]/(self.maxjac2+1e-6))*sensory[1]*delta[:,2])#/(1e-6+maxj)
+			delta = ((jacz[0])*sensory[0]*delta[:,1] + (jacz[1])*sensory[1]*delta[:,2])/(1e-6+maxj)
+			
+			delta = torch.clamp(delta,-0.5,0.5).unsqueeze(0)
+
+
 			delta[self.__basis < 1e-3] *= 0
 
 

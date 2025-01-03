@@ -109,6 +109,7 @@ for i in range(NEPISODE):
 	gaitstd = 0
 	sumdelta = 0
 	presumdelta = 1
+	torques = np.zeros((18))
 	for t in range(NTIMESTEP):
 
 		# update network
@@ -116,7 +117,7 @@ for i in range(NEPISODE):
 		output_k = []
 		forcings = []
 
-		torques = vrep.get_jointtorque()
+		torques = 0.5+vrep.get_jointtorque()+0.5*torques
 		jointangles = vrep.get_jointangle()
 		zfoots = np.zeros((NMODULE,))
 		jacz = np.zeros((NMODULE,3))
@@ -125,8 +126,13 @@ for i in range(NEPISODE):
 			theta2 = jointangles[3*k+1]
 			theta3 = jointangles[3*k+2]
 			zfoots[k] = 0.07*np.cos(theta2-0.261799) - 0.12*np.cos(-theta3+theta2-0.1309)
-			jacz[k,1] = -0.07*np.sin(theta2-0.261799) + 0.12*np.sin(-theta3+theta2-0.1309)
-			jacz[k,2] = -0.12*np.sin(-theta3+theta2-0.1309)
+			#jacz[k,1] = -0.07*np.sin(theta2-0.261799) + 0.12*np.sin(-theta3+theta2-0.1309)
+			#jacz[k,2] = -0.12*np.sin(-theta3+theta2-0.1309)
+
+			alpha1 = (15+23)*np.pi/180
+			alpha2 = (111.5)*np.pi/180 + theta2
+			jacz[k,1] = -0.07*np.sin(theta2-alpha1) - 0.12*np.cos(-theta3+theta2-alpha1-alpha2)
+			jacz[k,2] = 0.12*np.cos(-theta3+theta2-alpha1-alpha2)
 		#zfoots = zfoots - np.mean(zfoots)
 		zfoots /= (1e-6+np.max(np.abs(zfoots)))
 		#print(jacz[0])
@@ -137,7 +143,7 @@ for i in range(NEPISODE):
 		for k in range(NMODULE):	
 			force = torques[[3*k+1,3*k+2]]/(1e-6+ma_selforg)
 
-			force = -force#np.clip(-force,0,1)
+			force = -force#np.clip(-force,None,0)
 			out, delta = sme[k].forward(sensory=force, scaling=0.1*float(runargv[2])/presumdelta,jacz=jacz[k])
 			out = torch.clamp(out,-1,1)
 			sumdelta += torch.sum(torch.abs(delta))
