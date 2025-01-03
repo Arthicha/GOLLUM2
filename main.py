@@ -86,7 +86,8 @@ grad_replay = [Replay(NREPLAY,shape= (NTIMESTEP,CONNECTION.shape[0],NJPERM)) for
 weight_replay = [Replay(NREPLAY,shape=(1,CONNECTION.shape[0],NJPERM)) for i in range(NMODULE)]
 observation_replay = [Replay(NREPLAY,shape=(NTIMESTEP,1,CONNECTION.shape[0])) for i in range(NMODULE)]
 
-ma_selforg = np.array([1,1])
+ama_selforg = np.array([1,1])
+ma_selforg = np.array([0,0])
 
 recorded_reward = np.zeros((NEPISODE,NTIMESTEP))
 recorded_basis = np.zeros((NEPISODE,NTIMESTEP,CONNECTION.shape[0]))
@@ -141,7 +142,7 @@ for i in range(NEPISODE):
 		output = []
 		
 		for k in range(NMODULE):	
-			force = torques[[3*k+1,3*k+2]]/(1e-6+ma_selforg)
+			force = 2*(torques[[3*k+1,3*k+2]]-ma_selforg)/(1e-6+ama_selforg)
 
 			force = -force#np.clip(-force,None,0)
 			out, delta = sme[k].forward(sensory=force, scaling=0.1*float(runargv[2])/presumdelta,jacz=jacz[k])
@@ -184,7 +185,9 @@ for i in range(NEPISODE):
 	istart = 0 if i<8 else i-8
 	
 	print(recorded_torque.shape)
-	ma_selforg = np.array([np.mean(np.abs(recorded_torque[istart:i+1,:,1::3])),np.mean(np.abs(recorded_torque[istart:i+1,:,2::3]))])
+	ama_selforg = np.array([np.mean(np.abs(recorded_torque[istart:i+1,:,1::3])),np.mean(np.abs(recorded_torque[istart:i+1,:,2::3]))])
+	ma_selforg = np.array([np.mean((recorded_torque[istart:i+1,:,1::3])),np.mean((recorded_torque[istart:i+1,:,2::3]))])
+	
 	presumdelta = 0.9*presumdelta + 0.1*sumdelta/(NTIMESTEP*NMODULE)
 	print('\tepisodic reward',torch.sum(reward_replay.data()[-1]).item())
 	print('\tgait std',gaitstd,sumdelta)
