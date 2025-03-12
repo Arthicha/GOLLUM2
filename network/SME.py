@@ -59,13 +59,14 @@ class SequentialMotionExecutor(torchNet):
 
 		self.zpg = SequentialCentralPatternGenerator(self.__hyperparams)
 		self.bfn = BasisNetwork(self.__hyperparams) 
-		self.mn = MotorNetwork(self.__hyperparams,
+
+		motor_params = deepcopy(self.__hyperparams)
+		motor_params.n_state = self.__n_state+8
+		self.mn = MotorNetwork(motor_params,
 			outputgain=[float(gain) for gain in list((config['MN']['GAIN']).split(","))],
 			activation='tanh')
 
-		valueparams = deepcopy(self.__hyperparams)
-		valueparams.n_out = 1
-		self.vn = MotorNetwork(valueparams,None,activation='identity')
+		
 
 		# ---------------------- initialize neuron activity ------------------------ 
 		self.__state = self.zeros(1,self.__n_state)
@@ -74,6 +75,7 @@ class SequentialMotionExecutor(torchNet):
 		self.outputs = self.zeros(1,self.__n_out)
 		self.maxjac1 = 0 
 		self.maxjac2 = 0
+		self.smdelta = self.zeros(1,self.__n_state)
 
 		# ---------------------- reset modular neural network ------------------------ 
 		self.reset()
@@ -106,6 +108,10 @@ class SequentialMotionExecutor(torchNet):
 			self.mn.W *= 0
 			self.mn.W += newweight
 
+	def zero_grad(self):
+		with torch.no_grad():
+			self.mn.W.grad = None
+			self.mn.Wn.grad = None
 
 
 	# ---------------------- update   ------------------------
@@ -116,44 +122,18 @@ class SequentialMotionExecutor(torchNet):
 		self.mn.reset()
 
 		for i in range(self.__t_init):
-			self.forward()
+			self.halfforward()
 
-	def forward(self,sensory=0,scaling=1,jacz=None):
-
-		delta = (self.mn.Wn.detach())/(1e-6+torch.mean(torch.abs(self.mn.Wn.detach()),dim=0,keepdim=True))
-		delta = (self.bfn.get_connection()@delta)
-
-		if jacz is None:#not None:
-			delta = 0
-			'''
-			delta = (scaling*delta)#@(self.torch(jacz).unsqueeze(-1))
-			delta = sensory[0]*delta[:,1] - sensory[1]*delta[:,2]
-			#delta = torch.transpose(delta,1,0)*100
-			delta = torch.clamp(delta,-0.5,0.5).unsqueeze(0)
-			delta[self.__basis < 1e-3] *= 0'''
-		else:
-			maxj = max(np.abs(jacz[0]),np.abs(jacz[1]))
-
-			#delta = (jacz[0]*sensory[0]*delta[:,1] - jacz[1]*sensory[1]*delta[:,2])/(1e-6+maxj)
-			#delta = torch.clamp(-delta,-0.5,0.5).unsqueeze(0)
-
-			#self.maxjac1 = max(np.abs(jacz[0]),self.maxjac1)
-			#self.maxjac2 = max(np.abs(jacz[1]),self.maxjac2)
-
-			#delta = ((jacz[0]/(self.maxjac1+1e-6))*sensory[0]*delta[:,1] + (jacz[1]/(self.maxjac2+1e-6))*sensory[1]*delta[:,2])#/(1e-6+maxj)
-			delta = ((jacz[0])*sensory[0]*delta[:,1] + (jacz[1])*sensory[1]*delta[:,2])/(1e-6+maxj)
-			
-			delta = torch.clamp(delta,-0.5,0.5).unsqueeze(0)
-
-
-			delta[self.__basis < 1e-3] *= 0
-
-
-		self.__state = self.zpg(self.__filtered_inputs,self.__basis,delta=scaling*delta,scaling=1)
+	def halfforward(self):
+		self.__state = self.zpg(self.__filtered_inputs,self.__basis)
 		self.__basis = self.bfn(self.__state)
-		self.outputs = self.mn(self.__basis)
 
-		return self.outputs, delta
+	def forward(self, embedding):
+		self.__state = self.zpg(self.__filtered_inputs,self.__basis)
+		self.__basis = self.bfn(self.__state)
+		self.outputs = self.mn(torch.cat([self.__basis,embedding],dim=-1))
+
+		return self.outputs
 
 	
 
